@@ -1,0 +1,110 @@
+name: Build & Release AWSCLI-Addons
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.10]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller click boto3
+
+      - name: Build executable
+        run: |
+          mkdir -p dist
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            pyinstaller --onefile awscli_addons/main.py --name awscli-addons.exe
+            mv dist/awscli-addons.exe dist/awscli-addons-windows-amd64.exe
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            pyinstaller --onefile awscli_addons/main.py --name awscli-addons
+            mv dist/awscli-addons dist/awscli-addons-darwin-amd64
+          else
+            pyinstaller --onefile awscli_addons/main.py --name awscli-addons
+            mv dist/awscli-addons dist/awscli-addons-linux-amd64
+          fi
+
+      - name: Generate SHA256 checksum
+        run: |
+          cd dist
+          for f in *; do
+            sha256sum "$f" > "$f.sha256"
+          done
+
+      - name: Generate simple installation doc
+        run: |
+          cat <<EOF > dist/README_INSTALL.md
+# AWSCLI-Addons Installation
+
+Download the correct binary for your OS:
+
+- Linux: awscli-addons-linux-amd64
+- macOS: awscli-addons-darwin-amd64
+- Windows: awscli-addons-windows-amd64.exe
+
+Make it executable:
+
+\`\`\`bash
+chmod +x <binary>
+\`\`\`
+
+Add to PATH (Linux/macOS):
+
+\`\`\`bash
+export PATH=\$HOME/.local/bin:\$PATH
+\`\`\`
+
+Verify installation:
+
+\`\`\`bash
+awscli-addons --help
+\`\`\`
+EOF
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: awscli-addons-${{ matrix.os }}
+          path: dist/*
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: awscli-addons-ubuntu-latest
+          path: dist
+
+      - name: Create or update GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: Latest Release
+          draft: false
+          prerelease: false
+          artifacts: dist/*
