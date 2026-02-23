@@ -2,109 +2,171 @@ name: Build & Release AWSCLI-Addons
 
 on:
   push:
-    branches: [main]
-  release:
-    types: [created]
+    tags: ['v*']
+  workflow_dispatch:
+
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 
 jobs:
   build:
-    name: Build binaries
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.10]
+        os: [ubuntu-latest, ubuntu-24.04-arm64, macos-14, macos-latest]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
+          cache: 'pip'
 
-      - name: Install dependencies
+      - name: Detect OS and ARCH
+        id: info
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller click boto3
+          # Detect OS (linux, darwin)
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          
+          # Detect Arch (amd64, arm64)
+          ARCH=$(uname -m)
+          [ "$ARCH" == "x86_64" ] && ARCH="amd64"
+          [ "$ARCH" == "aarch64" ] && ARCH="arm64"
+          
+          # Set the output variable
+          echo "artifact_name=awscli-addons-${OS}-${ARCH}" >> $GITHUB_OUTPUT
 
-      - name: Build executable
+      - name: Determine version
+        id: version
         run: |
-          mkdir -p dist
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            pyinstaller --onefile awscli_addons/main.py --name awscli-addons.exe
-            mv dist/awscli-addons.exe dist/awscli-addons-windows-amd64.exe
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            pyinstaller --onefile awscli_addons/main.py --name awscli-addons
-            mv dist/awscli-addons dist/awscli-addons-darwin-amd64
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
           else
-            pyinstaller --onefile awscli_addons/main.py --name awscli-addons
-            mv dist/awscli-addons dist/awscli-addons-linux-amd64
+            VERSION="${GITHUB_REF#refs/tags/}"
           fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version: ${VERSION}"
 
-      - name: Generate SHA256 checksum
+
+      - name: Run Build Script
+        shell: bash
         run: |
-          cd dist
-          for f in *; do
-            sha256sum "$f" > "$f.sha256"
-          done
+          chmod +x build.sh
+          VERSION="${{ steps.version.outputs.version }}"
 
-      - name: Generate simple installation doc
-        run: |
-          cat <<EOF > dist/README_INSTALL.md
-      # AWSCLI-Addons Installation
+          # Pass 'quick' command and the current tag version
+          ./build.sh quick "${VERSION}"
+          
+          # Rename the output to match our artifact naming
+          mv dist/awscli-addons "dist/${{ steps.info.outputs.artifact_name }}"
 
-      Download the correct binary for your OS:
 
-      - Linux: awscli-addons-linux-amd64
-      - macOS: awscli-addons-darwin-amd64
-      - Windows: awscli-addons-windows-amd64.exe
 
-      Make it executable:
-
-      \`\`\`bash
-      chmod +x <binary>
-      \`\`\`
-
-      Add to PATH (Linux/macOS):
-
-      \`\`\`bash
-      export PATH=\$HOME/.local/bin:\$PATH
-      \`\`\`
-
-      Verify installation:
-
-      \`\`\`bash
-      awscli-addons --help
-      \`\`\`
-      EOF
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: awscli-addons-${{ matrix.os }}
-          path: dist/*
+          name: ${{ steps.info.outputs.artifact_name }}
+          path: dist/${{ steps.info.outputs.artifact_name }}
 
   release:
-    name: Create GitHub Release
+    name: Create Release
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: awscli-addons-ubuntu-latest
-          path: dist
+          path: ./artifacts
+          pattern: awscli-addons-*
+          merge-multiple: true
 
-      - name: Create or update GitHub Release
-        uses: ncipollo/release-action@v1
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum awscli-addons-* > checksums.txt
+          cat checksums.txt
+
+
+      - name: Create Manual Instructions
+        id: manual_notes
+        run: |
+          VERSION="${steps.version.outputs.version}"
+          FILE_NAME="manual_notes.md"
+          
+          # Get previous tag or default to first commit
+          PREV_TAG=$(git describe --tags --abbrev=0 "${VERSION}^" 2>/dev/null || git rev-list --max-parents=0 HEAD)
+
+          REPO_URL="https://github.com/${{ github.repository }}"
+
+          cat > ${FILE_NAME} << EOF
+          # 🚀 Release ${VERSION}
+
+          ## 📦 Installation
+          Install the latest binary for your system instantly:
+          \`\`\`bash
+          curl -sSL https://raw.githubusercontent.com{{ github.repository }}/main/install.sh | bash
+          \`\`\`
+
+          ## 🏗️ Available Binaries
+          | Platform | Architecture | Binary |
+          |----------|--------------|--------|
+          | Linux    | AMD64        | [linux-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-amd64) |
+          | Linux    | ARM64        | [linux-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-arm64) |
+          | macOS    | AMD64        | [macos-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-amd64) |
+          | macOS    | ARM64        | [macos-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-arm64) |
+          
+          Download the appropriate binary for your platform and make it executable:
+
+          \`\`\`bash
+          wget ${REPO_URL}/releases/download/${VERSION}/<Binary>
+          #or
+          curl ${REPO_URL}/releases/download/${VERSION}/<Binary>
+
+          chmod +x <Binary>
+          sudo mv <Binary> /usr/local/bin/<Binary>
+          \`\`\`
+
+          ## 🛡️ Verification
+          \`\`\`bash
+          sha256sum -c checksums.txt
+          \`\`\`
+
+          ## 📋 What's Changed
+
+          EOF
+          
+          if [ -n "$PREV_TAG" ]; then
+            git log ${PREV_TAG}..${VERSION} --oneline --pretty=format:"* %s (%h)" >> ${FILE_NAME}
+          else
+            echo "Initial release" >> ${FILE_NAME}
+          fi
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v1
         with:
-          tag: latest
-          name: Latest Release
-          draft: false
-          prerelease: false
-          artifacts: dist/*
+          body_path: manual_notes.md
+          append_body: true            # ✅ This attaches GitHub's notes BELOW yours
+          generate_release_notes: true  # ✅ This triggers the auto-generation
+          files: |
+            ./artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # - name: Create or update GitHub Release
+      #   uses: ncipollo/release-action@v1
+      #   with:
+      #     tag: latest
+      #     name: Latest Release
+      #     draft: false
+      #     prerelease: false
+      #     artifacts: dist/*

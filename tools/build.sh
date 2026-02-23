@@ -18,7 +18,8 @@ PROJECT_NAME="awscli-addons"
 SRC_DIR="awscli_addons"
 DIST_DIR="dist"
 BUILD_DIR="build"
-ZIP_NAME="${PROJECT_NAME}.zip"
+# Set a default Python - will be refined by install_python_dep
+PYTHON=$(command -v python3 || command -v python || echo "python3")
 VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
 
 #========================================
@@ -62,20 +63,13 @@ Commands:
 
 Output:
   dist/${PROJECT_NAME}/     Onedir executable folder
-  ${ZIP_NAME}         Zipped folder for distribution
 EOF
 }
 #========================================
 # Python + Dependencies
 #========================================
 install_python_dep() {
-  if command_exists python3; then
-    PYTHON=python3
-  elif command_exists python; then
-    PYTHON=python
-  else
-		echo -e "${RED}❌ Python not found.${NC}"
-  fi
+  echo -e "${YELLOW}📦 Checking dependencies...${NC}"
 
   if ! $PYTHON -m pip --version >/dev/null 2>&1; then
 		echo -e "${YELLOW} Installing pip... ${NC}"
@@ -83,13 +77,19 @@ install_python_dep() {
     curl -fsSL https://bootstrap.pypa.io/get-pip.py | $PYTHON -
   fi
 
-	echo -e "${YELLOW} Installing project dependencies... ${NC}"
+  $PYTHON -m pip install --upgrade pip setuptools wheel >/dev/null
 
+  # Extract dependencies from pyproject.toml
+  # Improved sed logic to be more robust
+  local deps
+  deps=$(sed -e '1,/dependencies = \[/d' -e '/\]/,$d' pyproject.toml | tr -d '",' | xargs)
+  
+  if [ -n "$deps" ]; then
+    echo -e "${YELLOW} Installing: $deps${NC}"
+    $PYTHON -m pip install $deps
+  fi
 
-	$PYTHON -m pip install $(sed -e '1,/dependencies = \[/d' -e '/\]/,$d' pyproject.toml | tr -d '",')
-
-
-	$PYTHON -m pip install pyinstaller
+  $PYTHON -m pip install pyinstaller
 
 
 }
@@ -105,16 +105,14 @@ build_quick() {
 
 	echo -e "${YELLOW}⚙️ Building onedir executable for current system...${NC}"
 
-	# 2. Inject Version into cli.py
-	# This ensures --version works in the final binary
-	sed_inplace "s/__version__ = .*/__version__ = \"$VERSION\"/" "awscli_addons/cli.py"
+  # Inject Version
+  sed_inplace "s/__version__ = .*/__version__ = \"$VERSION\"/" "$SRC_DIR/cli.py"
 
-	# 3. Run PyInstaller (Once, with all flags)
-	# Set variables for the BUILD process
+  # Build optimization flags
 	export PYTHONDONTWRITEBYTECODE=1
 	export PYTHONOPTIMIZE=1
 	
-	pyinstaller --onefile --name "$PROJECT_NAME" \
+	$PYTHON -m PyInstaller --onefile --name "$PROJECT_NAME" \
     --exclude-module tkinter --exclude-module unittest --exclude-module pydoc \
     --strip --noupx --clean \
     "$SRC_DIR/cli.py"
@@ -130,35 +128,30 @@ build_quick() {
 }
 
 zip_dist() {
-  if [ ! -d "$DIST_DIR/$PROJECT_NAME" ]; then
-    echo -e "${RED}❌ dist folder not found. Run build first.${NC}"
-    exit 1
-  fi
-  echo -e "${YELLOW}📦 Zipping dist folder...${NC}"
-  zip -r "$ZIP_NAME" "$DIST_DIR/$PROJECT_NAME"
-  echo -e "${GREEN}✔ Zipped: $ZIP_NAME${NC}"
+  local target="${DIST_DIR}/${PROJECT_NAME}"
+  [ ! -f "$target" ] && { echo -e "${RED}❌ Binary not found.${NC}"; exit 1; }
+  
+  echo -e "${YELLOW}📦 Zipping binary...${NC}"
+  zip -j "${PROJECT_NAME}.zip" "$target"
+  echo -e "${GREEN}✔ Created ${PROJECT_NAME}.zip${NC}"
 }
 
 generate_checksums() {
-  if [ ! -d "$DIST_DIR/$PROJECT_NAME" ]; then
-    echo -e "${RED}❌ dist folder not found. Run build first.${NC}"
-    exit 1
-  fi
-  echo -e "${YELLOW}🔐 Generating SHA256 checksums...${NC}"
-  cd "$DIST_DIR/$PROJECT_NAME"
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum ./* > checksums.txt
+  local target="${DIST_DIR}/${PROJECT_NAME}"
+  [ ! -f "$target" ] && { echo -e "${RED}❌ Binary not found.${NC}"; exit 1; }
+  
+  echo -e "${YELLOW}🔐 Generating SHA256...${NC}"
+  if command_exists sha256sum; then
+    sha256sum "$target" > "${target}.sha256"
   else
-    shasum -a 256 ./* > checksums.txt
+    shasum -a 256 "$target" > "${target}.sha256"
   fi
-  cd ../..
-  echo -e "${GREEN}✔ Checksums saved to dist/${PROJECT_NAME}/checksums.txt${NC}"
+  echo -e "${GREEN}✔ Checksum saved to ${target}.sha256${NC}"
 }
 
 clean() {
   echo -e "${YELLOW}🧹 Cleaning old builds...${NC}"
-  rm -rf "$DIST_DIR" "$BUILD_DIR" "$ZIP_NAME" "${PROJECT_NAME}.spec" "__pycache__"
-  echo -e "${GREEN}✔ Clean complete.${NC}"
+  rm -rf "$DIST_DIR" "$BUILD_DIR" "*.zip" "*.spec" "__pycache__"
 }
 
 #========================================

@@ -103,6 +103,11 @@ should be interactiv if user not exist procide with steps to add
    sha256sum awscli-addons-* > checksums.txt
    ```
 
-   ADD
-   awscli-addons --version
+
+apt update && apt install -y unzip curl git binutils
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+./aws/install
+
 

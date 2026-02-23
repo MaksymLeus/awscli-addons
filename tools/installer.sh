@@ -51,9 +51,13 @@ RESET="$(tput sgr0 2>/dev/null || echo '')"
 # Banners
 # ------------------------
 show_success_banner() {
+  # 1. Clear the screen to make the banner pop
+  clear
+
+  # 2. Show the ASCII art
   echo -e "${CYAN}${BOLD}"
   cat << "EOF"
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+
      ___   ____    __    ____   _______.  ______  __       __            ___       _______   _______   ______   .__   __.      _______.
     /   \  \   \  /  \  /   /  /       | /      ||  |     |  |          /   \     |       \ |       \ /  __  \  |  \ |  |     /       |
    /  ^  \  \   \/    \/   /  |   (----`|  ,----'|  |     |  |  ______ /  ^  \    |  .--.  ||  .--.  |  |  |  | |   \|  |    |   (----`
@@ -61,17 +65,32 @@ show_success_banner() {
  /  _____  \  \    /\    / .----)   |   |  `----.|  `----.|  |       /  _____  \  |  '--'  ||  '--'  |  `--'  | |  |\   | .----)   |   
 /__/     \__\  \__/  \__/  |_______/     \______||_______||__|      /__/     \__\ |_______/ |_______/ \______/  |__| \__| |_______/    
                                                                                                                                        
-                                                                                                                                                                                                                                                                           
-                                                                                                                                                                                                                                                                                                                        
 EOF
+
+  # 3. Rest of success logic...
   echo -e "${RESET}"
   echo -e "${GREEN}${BOLD}Successfully installed ${PROJECT_NAME}!${RESET}"
   echo "--------------------------------------------------------"
   echo -e "📂 Location:  ${INSTALL_DIR}/${PROJECT_NAME}"
-  echo -e "🚀 Command:   ${BOLD}${PROJECT_NAME} --help${RESET}"
-  
+  echo -e "🚀 Direct Command:   ${BOLD}${PROJECT_NAME} --help${RESET}"
+
+  # Check if AWS CLI is installed to show the Alias message
+  if command_exists aws; then
+      success "AWS CLI detected! Alias 'aws addons' is now active."
+      echo -e "☁️  AWS Alias: ${CYAN}${BOLD}aws addons --help${RESET}"
+  else
+      echo -e "💡 ${YELLOW}Tip: Install AWS CLI v2 to use the 'aws addons' alias.${NC}"
+  fi
+
+
+  # Path & Reload instructions
+  RC_FILE="${SHELL_RC:-~/.bashrc}"
   if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-      echo -e "⚠️  ${BOLD}Next Step:${RESET} Restart your terminal or run: ${CYAN}source ${SHELL_RC:-~/.bashrc}${RESET}"
+      echo -e "\n⚠️  ${BOLD}ACTION REQUIRED:${RESET} To enable the command, run:"
+      echo -e "   ${CYAN}source ${RC_FILE}${RESET}"
+  else
+      echo -e "\n✨ ${BOLD}Ready!${RESET} If the command is not found, run:"
+      echo -e "   ${CYAN}source ${RC_FILE}${RESET}"
   fi
   echo "--------------------------------------------------------"
 }
@@ -238,6 +257,38 @@ add_path() {
 }
 
 # ------------------------
+# Add AWS cli alias (aws addons <commands>)
+# ------------------------
+add_awscli_alias() {
+  info "Configuring AWS CLI alias..."
+  
+  # Ensure the directory exists
+  mkdir -p "$HOME/.aws/cli"
+  
+  local alias_file="$HOME/.aws/cli/alias"
+  
+  # Check if [toplevel] header exists, if not, create it
+  if [ ! -f "$alias_file" ] || ! grep -q "\[toplevel\]" "$alias_file"; then
+    echo "[toplevel]" >> "$alias_file"
+  fi
+
+  # Define the alias string (using "$@" to pass all arguments correctly)
+  # We use a literal '$' for the variables so they aren't expanded during 'echo'
+  local alias_cmd="addons = !f() { $INSTALL_DIR/$PROJECT_NAME \"\$@\"; }; f"
+
+  # Append the alias if it's not already there
+  if ! grep -q "addons =" "$alias_file"; then
+    echo "$alias_cmd" >> "$alias_file"
+    success "AWS CLI alias 'aws addons' configured!"
+  else
+    info "AWS CLI alias 'addons' already exists."
+  fi
+}
+
+
+
+
+# ------------------------
 # Check Existing Install
 # ------------------------
 check_existing_install() {
@@ -284,6 +335,7 @@ else
 fi
 
 add_path
+add_awscli_alias
 
 # The Grand Finale
 show_success_banner
