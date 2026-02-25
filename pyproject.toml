@@ -10,7 +10,7 @@ authors = [
   { name = "Maksym Leus", email = "you@example.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
   "boto3>=1.28.0",
