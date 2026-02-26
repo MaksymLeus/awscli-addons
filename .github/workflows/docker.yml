@@ -136,7 +136,6 @@ jobs:
       - name: Cleanup old Docker Hub tags
         uses: data-science-at-scale/delete-docker-hub-tag@v0.6.1
         with:
-          repository: ${{ env.IMAGE_NAME }}
           repository: ${{ steps.prep.outputs.repo_only }}
           # For Docker Hub, use your username and a Personal Access Token
           username: ${{ secrets.DOCKERHUB_USERNAME }}
