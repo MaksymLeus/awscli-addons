@@ -1,16 +1,29 @@
 ## Roadmap
 - add Docker container to docker hub + repo dockerfile
   <!-- - add docker hub (dh) -->
-  - add docker to github wf
+  <!-- - add docker to github wf -->
+  <!-- - setup (Cleanup old Docker Hub tags) in gh wf -->
   - add dh to readme
   - add docs to dockerhub
   
 - Add configuration command (read alias and add extra)
-    1. show creads - for curent profile
-    2. configure - change all configs + creds
-    3. Add Upgrade app
-    4. login ecr https://github.com/lamhaison/aws-cli-utils/blob/main/services/ecr.sh
-    5. docs
+    <!-- 1. show creads - for curent profile -->
+       <!-- 1. update config with ne utils -->
+       <!-- 2. Session Token:     [Active] make it not hard-coded -->
+    <!-- 2. Verify 
+       1. modify with utils    -->
+    <!-- 3. configure -  -->
+       <!-- 1. change all configs +  -->
+       <!-- 2. creds -->
+    4. Add Upgrade app
+       1. need test if it's work
+    5. ecr 
+       <!-- 1. login -->
+       <!-- 2. purge -->
+       <!-- 3. login public -->
+       <!-- 4. test all ecr command -->
+       1. add to docs
+    6. docs
    
 - Add documentation
 

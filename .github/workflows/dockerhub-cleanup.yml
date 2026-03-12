@@ -1,0 +1,74 @@
+name: Docker Hub Cleanup
+
+on:
+  # Allows you to run this manually from the Actions tab
+  workflow_dispatch:
+  # Optional: Schedule it to run every Sunday at midnight
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  cleanup-tags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Cleanup Script
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          # Pattern to PROTECT: latest and any semver like v1.2.3
+          EXCLUDE_PATTERN: "^(latest|v[0-9]+\\.[0-9]+\\.[0-9]+)$"
+        run: |
+          
+          # 1. Force lowercase for Docker Hub compatibility
+          RAW_REPO="${{ github.event.repository.name }}"
+          REPO=$(echo "$RAW_REPO" | tr '[:upper:]' '[:lower:]')
+          USER=$(echo "$DOCKER_USERNAME" | tr '[:upper:]' '[:lower:]')
+
+          echo "Logging in to Docker Hub as $USER..."
+          TOKEN=$(curl -s -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" \
+              https://hub.docker.com/v2/users/login/ | jq -r .token)
+
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+              echo "::error::Authentication failed. Check your DOCKER_PASSWORD/Token permissions."
+              exit 1
+          fi
+
+          echo "Fetching tags for $USER/$REPO..."
+
+          # 2. Capture response and check for errors before parsing
+          RESPONSE=$(curl -s -H "Authorization: JWT $TOKEN" \
+              "https://hub.docker.com/v2/repositories/$USER/$REPO/tags/?page_size=100")
+          
+          # Check if the response actually contains results
+          if ! echo "$RESPONSE" | jq -e '.results' > /dev/null; then
+              echo "::error::Could not find repository or tags. API Response: $RESPONSE"
+              exit 1
+          fi
+
+          TAGS=$(echo "$RESPONSE" | jq -r '.results[].name')
+
+          for TAG in $TAGS; do
+              if [[ "$TAG" =~ $EXCLUDE_PATTERN ]]; then
+                  echo "--> [SKIPPING] Protected tag: $TAG"
+                  continue
+              fi
+
+              echo "--> [DELETING] Unwanted tag: $TAG"
+              
+              DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                  -X DELETE \
+                  -H "Authorization: JWT $TOKEN" \
+                  "https://hub.docker.com/v2/repositories/$USER/$REPO/tags/$TAG/")
+              
+              if [ "$DELETE_CODE" == "204" ]; then
+                  echo "    Successfully removed $TAG"
+              else
+                  echo "    Failed to remove $TAG (HTTP $DELETE_CODE)"
+              fi
+          done
+          echo "Cleanup finished."

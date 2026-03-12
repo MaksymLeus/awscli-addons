@@ -33,3 +33,27 @@ def Config_profile_exists(path: str, profile_name: str):
     _path = Path.home() / path
     config = Config_read(_path)
     return profile_name in config.sections()
+
+
+
+def check_aws_config_dirs():
+    aws_dir = Path.home() / ".aws"
+    aws_dir.mkdir(exist_ok=True)
+    credentials_file = aws_dir / "credentials"
+    config_file = aws_dir / "config"
+    if not credentials_file.exists():
+        credentials_file.touch()
+        print(f"✅ Created empty AWS credentials file at {credentials_file}")
+    else:
+        print(f"✅ AWS credentials file exists: {credentials_file}")
+    if not config_file.exists():
+        config_file.touch()
+        print(f"✅ Created empty AWS config file at {config_file}")
+    else:
+        print(f"✅ AWS config file exists: {config_file}")
+
+    return {
+        "aws_dir": aws_dir,
+        "credentials_file": credentials_file,
+        "config_file": config_file
+    }

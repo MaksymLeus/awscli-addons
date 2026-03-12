@@ -3,6 +3,7 @@ FROM python:3.11-slim-bookworm AS builder
 
 # This ARG is automatically populated by Buildx
 ARG TARGETARCH
+ARG VERSION="latest"
 
 # 1. Install build-only dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,7 +34,7 @@ COPY . .
 ENV PATH="/root/.local/bin:$PATH"
 
 RUN chmod +x ./tools/installer.sh && \
-    ./tools/installer.sh
+    VERSION=${VERSION} ./tools/installer.sh
 
 # --- Stage 2: Final Runtime ---
 FROM python:3.11-slim-bookworm
