@@ -131,13 +131,3 @@ jobs:
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ inputs.registry }}/${{ steps.prep.outputs.image_full_name }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Cleanup old Docker Hub tags
-        uses: data-science-at-scale/delete-docker-hub-tag@v0.6.1
-        with:
-          repository: ${{ steps.prep.outputs.repo_only }}
-          # For Docker Hub, use your username and a Personal Access Token
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          # Regex for tags to delete (e.g., all except latest and semver)
-          tag: '^sha-.*$' # Example: delete all git-sha tags
