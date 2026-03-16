@@ -8,6 +8,9 @@
   <a href="https://github.com/MaksymLeus/awscli-addons/actions/workflows/release.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/MaksymLeus/awscli-addons/release.yml?style=for-the-badge&label=CI" alt="Build Status">
   </a>
+  <a href="https://hub.docker.com/r/maximleus/awscli-addons">
+    <img src="https://img.shields.io/docker/pulls/maximleus/awscli-addons?style=for-the-badge">
+  </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/MaksymLeus/awscli-addons?style=for-the-badge" alt="License">
   </a>
