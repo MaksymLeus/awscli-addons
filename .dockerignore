@@ -1,0 +1,28 @@
+# Git & Meta
+.git
+.github
+.gitignore
+
+# Python Bloat
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.venv
+node_modules
+
+# Build Artifacts
+dist
+build
+*.egg-info
+
+# Project Specific
+tmp
+docs
+LICENSE
+README.md
+Dockerfile*
+.env
+*.aws/credentials
+*.aws/config

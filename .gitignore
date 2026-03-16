@@ -1,0 +1,78 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.zip
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# PyInstaller
+*.manifest
+*.spec
+dist/
+
+# Environment variables / secrets
+.env
+.env.*
+*.env
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VSCode / PyCharm
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# MacOS / Linux / Windows temp files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# My local credentials (optional)
+.aws/credentials
+.aws/config
+
+# Temporary files
+tmp/
