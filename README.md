@@ -5,11 +5,8 @@
   <a href="https://github.com/MaksymLeus/awscli-addons/releases">
     <img src="https://img.shields.io/github/v/release/MaksymLeus/awscli-addons?style=for-the-badge" alt="GitHub release">
   </a>
-  <a href="https://github.com/MaksymLeus/awscli-addons/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/MaksymLeus/awscli-addons/ci.yml?style=for-the-badge&label=CI" alt="Build Status">
-  </a>
-  <a href="https://github.com/MaksymLeus/awscli-addons/releases">
-    <img src="https://img.shields.io/github/downloads/MaksymLeus/awscli-addons/total?style=for-the-badge" alt="Downloads">
+  <a href="https://github.com/MaksymLeus/awscli-addons/actions/workflows/release.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MaksymLeus/awscli-addons/release.yml?style=for-the-badge&label=CI" alt="Build Status">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/MaksymLeus/awscli-addons?style=for-the-badge" alt="License">
@@ -118,12 +115,7 @@ The installer **automatically** configures an AWS CLI alias for you. If you inst
 
 It adds a persistent alias to your **`~/.aws/cli/alias`** configuration, mapping **`aws addons`** directly to your `awscli-addons` binary.
 
-```bash
-# Use it like a native AWS command
-aws addons whoami
-aws addons mfa
-aws addons myip
-```
+![Alias](docs/images/alias_cli.png)
 
 ##  🔨 Development & Building
 
